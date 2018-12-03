@@ -57,6 +57,7 @@
     <Compile Include="Assets\Scripts\GameCoordinator.cs" />
     <Compile Include="Assets\Scripts\GameInputManager.cs" />
     <Compile Include="Assets\Scripts\GameLevelManager.cs" />
+    <Compile Include="Assets\Scripts\InputForwarder.cs" />
     <Compile Include="Assets\Scripts\LeaderController.cs" />
     <Compile Include="Assets\Scripts\LevelLoader.cs" />
     <Compile Include="Assets\Scripts\LevelLoaderSceneHelper.cs" />

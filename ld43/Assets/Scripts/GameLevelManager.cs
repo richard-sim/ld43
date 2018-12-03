@@ -76,15 +76,18 @@ public class GameLevelManager : MonoBehaviour {
                 break;
             
             case GameState.LevelComplete:
-                Debug.Break();
+//                Debug.Break();
+                Debug.Log("Level complete!");
                 break;
             
             case GameState.Won:
-                Debug.Break();
+//                Debug.Break();
+                Debug.Log("Game won!");
                 break;
             
             case GameState.Lost:
-                Debug.Break();
+//                Debug.Break();
+                Debug.Log("Game lost!");
                 break;
         }
 

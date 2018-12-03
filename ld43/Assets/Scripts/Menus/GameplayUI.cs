@@ -14,10 +14,12 @@ public class GameplayUI : MonoBehaviour {
 
     private IEnumerator WaitUntilPlayResumes() {
         while (LevelManager.State == GameLevelManager.GameState.Attacking) {
+//            Debug.Log(LevelManager.State.ToString());
             yield return null;
         }
 
         AttackButton.interactable = true;
+        Debug.Log("Play has resumed.");
     }
 
     public void OnAttackClicked() {

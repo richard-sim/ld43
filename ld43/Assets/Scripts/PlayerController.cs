@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.EventSystems;
 using Random = UnityEngine.Random;
 
 public class PlayerController : MonoBehaviour {
@@ -67,7 +68,9 @@ public class PlayerController : MonoBehaviour {
                     }
                 }
             }
-        } while (!completed || _attackCancelled);
+        } while (!completed && !_attackCancelled);
+        
+        Debug.Log("Attack completed.");
 
         // Return to Playing state
         LevelManager.ChangeState(GameLevelManager.GameState.Playing);
@@ -76,64 +79,56 @@ public class PlayerController : MonoBehaviour {
     public void CancelAttack() {
         _attackCancelled = true;
     }
-    
-    void Update() {
-        if (Input.GetMouseButtonDown(0)) {
-            _targetsUnrotated.Clear();
-            _targetsRotated.Clear();
-            _targetsRaycast.Clear();
-            
-//            Debug.Log($"Current state: {LevelManager.State}");
-            
-            Ray mouseRay = PlayerCamera.ScreenPointToRay(Input.mousePosition);
-            
-            int layerMask = LayerMask.GetMask("Player", "Enemies", "Ground", "Sacrifices", "Targets");
 
-            RaycastHit targetHit;
-            if (Physics.Raycast(mouseRay, out targetHit, Mathf.Infinity, layerMask)) {
-                int hitLayer = targetHit.collider.gameObject.layer;
-                
-//                Debug.Log($"Hit layer: {LayerMask.LayerToName(hitLayer)} ({hitLayer})");
-                
-                if (hitLayer == LayerMask.NameToLayer("Ground")) {
-                    if (LevelManager.State == GameLevelManager.GameState.Playing) {
-                        BlipYesSFX.Play();
-                        MoveBattalion(targetHit);
-                    }
-                } else if (hitLayer == LayerMask.NameToLayer("Player")) {
-                    if (LevelManager.State == GameLevelManager.GameState.Attacking) {
-                        // Select the agent
-                        PlayerAgent agent = targetHit.collider.gameObject.GetComponentInParent<PlayerAgent>();
-                        NavMeshAgent navMeshAgent = targetHit.collider.gameObject.GetComponentInParent<NavMeshAgent>();
-                        if ((agent != null) && (!agent.IsCommander || (PlayerAgents.Length == 1)) && (navMeshAgent != null)) {
-                            _selectedAgent = navMeshAgent;
-                            
-                            BlipYesSFX.Play();
-                        }
-                        else {
-                            BlipNoSFX.Play();
-                        }
-                    }
-                } else if ((hitLayer == LayerMask.NameToLayer("Enemies")) ||
-                           (hitLayer == LayerMask.NameToLayer("Sacrifices")) ||
-                           (hitLayer == LayerMask.NameToLayer("Targets"))) {
-                    // Attack the enemy
-                    if (LevelManager.State == GameLevelManager.GameState.Attacking) {
-                        if (_selectedAgent != null) {
-                            WitnessMeSFX.PlayDelayed(0.2f);
+    public void OnForwardedPointerDown(InputForwarder source, PointerEventData eventData) {
+        if (eventData.button != PointerEventData.InputButton.Left) {
+            return;
+        }
+        
+        _targetsUnrotated.Clear();
+        _targetsRotated.Clear();
+        _targetsRaycast.Clear();
+        
+        Debug.Log($"Current state: {LevelManager.State}");
+        
+        int hitLayer = source.gameObject.layer;
+        
+        Debug.Log($"Hit {source.gameObject.name} on layer: {LayerMask.LayerToName(hitLayer)} ({hitLayer})");
 
-                            _selectedAgent.SetDestination(targetHit.point);
-                            StartCoroutine(WaitForAttackCompleted());
-                        }
-                    }
+        if ((hitLayer == LayerMask.NameToLayer("Ground")) ||
+            (hitLayer == LayerMask.NameToLayer("Targets"))) {
+            if (LevelManager.State == GameLevelManager.GameState.Playing) {
+                BlipYesSFX.Play();
+                MoveBattalion(source.gameObject, eventData);
+            }
+        } else if (hitLayer == LayerMask.NameToLayer("Player")) {
+            if (LevelManager.State == GameLevelManager.GameState.Attacking) {
+                // Select the agent
+                PlayerAgent agent = source.gameObject.GetComponentInParent<PlayerAgent>();
+                NavMeshAgent navMeshAgent = source.gameObject.GetComponentInParent<NavMeshAgent>();
+                if ((agent != null) && (!agent.IsCommander || (PlayerAgents.Length == 1)) && (navMeshAgent != null)) {
+                    _selectedAgent = navMeshAgent;
+                        
+                    BlipYesSFX.Play();
                 }
                 else {
                     BlipNoSFX.Play();
                 }
             }
-            else {
-                BlipNoSFX.Play();
+        } else if ((hitLayer == LayerMask.NameToLayer("Enemies")) ||
+                   (hitLayer == LayerMask.NameToLayer("Sacrifices"))) {
+            // Attack the enemy
+            if (LevelManager.State == GameLevelManager.GameState.Attacking) {
+                if (_selectedAgent != null) {
+                    WitnessMeSFX.PlayDelayed(0.2f);
+
+                    _selectedAgent.SetDestination(eventData.pointerPressRaycast.worldPosition);
+                    StartCoroutine(WaitForAttackCompleted());
+                }
             }
+        }
+        else {
+            BlipNoSFX.Play();
         }
     }
 
@@ -147,12 +142,15 @@ public class PlayerController : MonoBehaviour {
         }
     }
 
-    private void MoveBattalion(RaycastHit targetHit) {
+    private void MoveBattalion(GameObject hitGO, PointerEventData eventData) {
         // Formation:
         // O O O
         // O O O O
         // O O O
         // 
+
+        Vector3 wsHit = eventData.pointerPressRaycast.worldPosition;
+        float hitDistance = eventData.pointerPressRaycast.distance;
 
         // Find the dXd formation that's needed for the number of agents we have active
         int numAgents = PlayerAgents.Length;
@@ -167,7 +165,7 @@ public class PlayerController : MonoBehaviour {
         float radius = 6.0f;
 
         // Rotate formation about Y-axis by projection of (newTarget - prevTarget) on XZ plane
-        Vector3 movementVector = targetHit.point - _lastTarget;
+        Vector3 movementVector = wsHit - _lastTarget;
         if (!_firstMove) {
             // If moving within the radius of the current formation, just re-orient to the camera rather than
             // the delta between moves, as it could be rather random at smaller magnitudes
@@ -189,7 +187,7 @@ public class PlayerController : MonoBehaviour {
 //        Debug.Log($"Agent formation: {dX}x{dZ}. First line: {dFrontLine}. Angle: {angle}");
 
         _firstMove = false;
-        _lastTarget = targetHit.point;
+        _lastTarget = wsHit;
 
         for (int agentIdx = 0; agentIdx < PlayerAgents.Length; agentIdx++) {
             NavMeshAgent agent = PlayerAgents[agentIdx];
@@ -220,29 +218,32 @@ public class PlayerController : MonoBehaviour {
             Vector3 offset = new Vector3(xOffset, 0.0f, zOffset);
 
             Vector3 rotatedOffset = formationRotation.MultiplyPoint3x4(offset);
-            Vector3 desiredLocation = targetHit.point + rotatedOffset;
+            Vector3 desiredLocation = wsHit + rotatedOffset;
 
             Ray newRay = new Ray(PlayerCamera.transform.position, desiredLocation - PlayerCamera.transform.position);
 
+            Vector3 newHit;
             RaycastHit hit;
-            if (!targetHit.collider.Raycast(newRay, out hit, targetHit.distance + offset.magnitude + 10.0f)) {
-                hit = targetHit;
+            if (hitGO.GetComponent<Collider>().Raycast(newRay, out hit, hitDistance + offset.magnitude + 10.0f)) {
+                newHit = hit.point;
+            } else {
+                newHit = wsHit;
             }
 
             if (agent.isActiveAndEnabled) {
-                agent.SetDestination(hit.point);
+                agent.SetDestination(newHit);
             }
 
-            _targetsUnrotated.Add(targetHit.point + offset);
+            _targetsUnrotated.Add(wsHit + offset);
             _targetsRotated.Add(desiredLocation);
-            _targetsRaycast.Add(hit.point);
+            _targetsRaycast.Add(newHit);
 
 //            string unitType = isFrontLine ? "Frontline" : "Support";
 //            Debug.Log($"Agent {agentIdx} ({xIndex}, {zIndex}) @ {offset}. {unitType}");
         }
 
         //
-        Leader.OnPlayerBattalionMove(targetHit.point, PlayerAgents.Length);
+        Leader.OnPlayerBattalionMove(wsHit, PlayerAgents.Length);
     }
 
     public void AgentOnTriggerEnter(PlayerAgent agent, Collider other) {
@@ -277,6 +278,8 @@ public class PlayerController : MonoBehaviour {
 
             if (activeCount == 0) {
                 LevelManager.ChangeState(GameLevelManager.GameState.Lost);
+            } else if (LevelManager.State == GameLevelManager.GameState.Attacking) {
+                LevelManager.ChangeState(GameLevelManager.GameState.Playing);
             }
         } else if (layer == LayerMask.NameToLayer("Targets")) {
             LevelManager.ChangeState(GameLevelManager.GameState.Won);
