@@ -24,6 +24,10 @@ public class GameInputManager : MonoBehaviour
 //            if (Input.GetButtonDown("Fire3")) {
 //                LevelManager.ChangeState(GameLevelManager.GameState.Lost);
 //            }
+        } else if (LevelManager.State == GameLevelManager.GameState.SelectingForAttack) {
+            if (Input.GetButtonDown("Cancel")) {
+                LevelManager.ChangeState(GameLevelManager.GameState.Playing);
+            }
         } else if (LevelManager.State == GameLevelManager.GameState.Attacking) {
             if (Input.GetButtonDown("Cancel")) {
                 Player.CancelAttack();

@@ -20,6 +20,7 @@ public class GameLevelManager : MonoBehaviour {
     public enum GameState {
         Intro,
         Playing,
+        SelectingForAttack,
         Attacking,
         PlayPaused,
         LevelComplete,
@@ -34,6 +35,8 @@ public class GameLevelManager : MonoBehaviour {
     }
 
     public void ChangeState(GameState newState) {
+        Debug.Log($"ChangeState({_state} -> {newState})");
+
         switch (_state) {
             case GameState.Intro:
                 Debug.Assert(newState == GameState.Playing);
@@ -44,7 +47,7 @@ public class GameLevelManager : MonoBehaviour {
                 break;
             
             case GameState.Playing:
-                if (newState == GameState.Attacking) {
+                if (newState == GameState.SelectingForAttack) {
                     // Nothing to do
                 } else if (newState == GameState.PlayPaused) {
                     PauseMenu.SetActive(true);
@@ -58,6 +61,13 @@ public class GameLevelManager : MonoBehaviour {
                 else {
                     Debug.LogError("Unhandled state: " + newState);
                 }
+
+                break;
+            
+            case GameState.SelectingForAttack:
+                Debug.Assert((newState == GameState.Attacking) || (newState == GameState.Playing));
+
+                // Nothing to do
 
                 break;
             

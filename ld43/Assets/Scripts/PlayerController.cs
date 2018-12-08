@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour {
     private Vector3 _lastTarget = Vector3.zero;
 
     private NavMeshAgent _selectedAgent;
+    private bool _attackCancelled = false;
 
     private List<Vector3> _targetsUnrotated = new List<Vector3>();
     private List<Vector3> _targetsRotated = new List<Vector3>();
@@ -51,7 +52,6 @@ public class PlayerController : MonoBehaviour {
         }
     }
 
-    private bool _attackCancelled = false;
     IEnumerator WaitForAttackCompleted() {
         _attackCancelled = false;
         
@@ -68,12 +68,14 @@ public class PlayerController : MonoBehaviour {
                     }
                 }
             }
+            else {
+                completed = true;
+            }
         } while (!completed && !_attackCancelled);
         
         Debug.Log("Attack completed.");
 
-        // Return to Playing state
-        LevelManager.ChangeState(GameLevelManager.GameState.Playing);
+        // Return to Playing state is done in AgentOnTriggerEnter()
     }
 
     public void CancelAttack() {
@@ -102,7 +104,7 @@ public class PlayerController : MonoBehaviour {
                 MoveBattalion(source.gameObject, eventData);
             }
         } else if (hitLayer == LayerMask.NameToLayer("Player")) {
-            if (LevelManager.State == GameLevelManager.GameState.Attacking) {
+            if (LevelManager.State == GameLevelManager.GameState.SelectingForAttack) {
                 // Select the agent
                 PlayerAgent agent = source.gameObject.GetComponentInParent<PlayerAgent>();
                 NavMeshAgent navMeshAgent = source.gameObject.GetComponentInParent<NavMeshAgent>();
@@ -118,8 +120,10 @@ public class PlayerController : MonoBehaviour {
         } else if ((hitLayer == LayerMask.NameToLayer("Enemies")) ||
                    (hitLayer == LayerMask.NameToLayer("Sacrifices"))) {
             // Attack the enemy
-            if (LevelManager.State == GameLevelManager.GameState.Attacking) {
+            if (LevelManager.State == GameLevelManager.GameState.SelectingForAttack) {
                 if (_selectedAgent != null) {
+                    LevelManager.ChangeState(GameLevelManager.GameState.Attacking);
+                    
                     WitnessMeSFX.PlayDelayed(0.2f);
 
                     _selectedAgent.SetDestination(eventData.pointerPressRaycast.worldPosition);
@@ -133,7 +137,7 @@ public class PlayerController : MonoBehaviour {
     }
 
     private void LateUpdate() {
-        if ((LevelManager.State == GameLevelManager.GameState.Attacking) && (_selectedAgent != null)) {
+        if ((LevelManager.State == GameLevelManager.GameState.SelectingForAttack) && (_selectedAgent != null)) {
             SelectionCircle.transform.position = new Vector3(_selectedAgent.transform.position.x, 0.0f, _selectedAgent.transform.position.z);
             SelectionCircle.SetActive(true);
         }

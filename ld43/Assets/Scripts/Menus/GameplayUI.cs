@@ -13,7 +13,7 @@ public class GameplayUI : MonoBehaviour {
     public TMP_Text CurrentScoreText;
 
     private IEnumerator WaitUntilPlayResumes() {
-        while (LevelManager.State == GameLevelManager.GameState.Attacking) {
+        while ((LevelManager.State == GameLevelManager.GameState.SelectingForAttack) || (LevelManager.State == GameLevelManager.GameState.Attacking)) {
 //            Debug.Log(LevelManager.State.ToString());
             yield return null;
         }
@@ -25,7 +25,7 @@ public class GameplayUI : MonoBehaviour {
     public void OnAttackClicked() {
         AttackButton.interactable = false;
         
-        LevelManager.ChangeState(GameLevelManager.GameState.Attacking);
+        LevelManager.ChangeState(GameLevelManager.GameState.SelectingForAttack);
         StartCoroutine(WaitUntilPlayResumes());
     }
     
